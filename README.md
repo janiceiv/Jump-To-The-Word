@@ -18,7 +18,7 @@ Requirements
 - No additional installations required
 
 Known Issues
-This game still has a few bugs. Feel free to contribute and help us improve the game by fixing them!
+<br> This game still has a few bugs. Feel free to contribute and help us improve the game by fixing them!
 
 Acknowledgments
 Special thanks to our Game Graphics lecturers for their support and feedback throughout the development process."# Jump-To-The-Word" 
