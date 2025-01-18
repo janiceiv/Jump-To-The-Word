@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jump To The Word</title>
+</head>
+<style>
+    #myCanvas {
+        margin: 10px;
+        padding: 10px;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: auto;
+        background-image: url("riverbg.png") ;
+    }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<body>
+    <canvas id="myCanvas" width="500" height="850" style="border:1px solid"></canvas>
+    <audio id="bgm" src="bgm.mp3" preload="auto"></audio>
+    <audio id="gameOver" src="game_over.mp3" preload="auto"></audio>
+    <audio id="jump" src="jump.mp3" preload="auto"></audio>
+    <audio id="wrong" src="wrong.mp3" preload="auto"></audio>
+
+    <script src="player.js"></script>
+    <script src="sand.js"></script>
+    <script src="fish.js"></script>
+    <script>
+        var canvas = document.getElementById("myCanvas"),
+            context = canvas.getContext('2d'),
+            player = new Player("guy2.png", 1);
+
+        player.y = canvas.height - 35;
+        player.x = canvas.width / 2;
+        player.vx = 1;
+
+        let choices = [];
+        var posisiy = null;
+        var posisix = null;
+        let chosenChoice = null;
+        let gameStart = false;
+        let gameOver = false;
+        let isGameWin = false;
+        let afterJump = false;
+
+        var bgm = document.getElementById('bgm');
+        var wrong = document.getElementById('wrong');
+        var jump = document.getElementById('jump');
+        var game_over = document.getElementById('gameOver');
+        
+
+        let words = ["ANT", "COW","BEE", "DOG","CAT","PIG","ELK","OWL","FOX","BAT",
+                    "DEER","BEAR","SWAN","DUCK","GOAT","BIRD","CRAB","FISH","FROG","LION","CAMEL","TIGER",
+                    "EAGLE","GECKO","GOOSE","HORSE","MOUSE","PANDA","PRAWN","SHARK",
+                    "OYSTER","SPIDER","TURTLE","PIGEON","PARROT","MONKEY","LIZARD","IGUANA","DONKEY","ALPACA",
+                    "BUFFALO","CATFISH","CHICKEN","CRICKET","DOLPHIN","FIREFLY","GIRAFFE","LADYBUG","OSTRICH","PEACOCK"];
+        let usedword =[];
+        let currentWord = null;
+        let currentLetterIndex = 0;
+        let letterChoice = [];
+
+        let level = 1;
+        let maxWordLength = 3;
+        let wordsCompleteInLevel = 0;
+        const wordsPerLevel = 2;
+        const grassTopY = 50;
+
+        const gameTitle = "Jump To";
+        const gameTitle2 = "The Word";
+        const startMessage = "Press Enter to Start";
+
+        // Grass Images
+        const grassTop = new Image();
+        grassTop.src = "grass.jpg";
+
+        const grassBottom = new Image();
+        grassBottom.src = "grass.jpg";
+
+        grassTop.onload = grassBottom.onload = () => {
+            console.log("Grass images loaded");
+        };
+
+        function drawGrass() {
+            if (grassTop.complete && grassBottom.complete) {
+                // Draw grass on top
+                context.drawImage(grassTop, 0, 0, canvas.width, 50);
+
+                // Draw grass at the bottom
+                context.drawImage(grassBottom, 0, canvas.height - 50, canvas.width, 50);
+            }
+        }
+
+        function pickRandomWord() {
+            let filteredWords = words.filter(word => word.length === maxWordLength);   
+            if (filteredWords.length > 0) {
+                let randomIndex = Math.floor(Math.random() * filteredWords.length);
+                currentWord = filteredWords.splice(randomIndex, 1)[0];
+                usedword.push(currentWord);
+                words = words.filter(word => word !== currentWord);
+            } else {
+                words = usedword;
+                usedword = [];
+                pickRandomWord();
+            }
+        }
+
+        pickRandomWord();
+
+        function createLetterChoice(){
+            letterChoice = [];
+            let correctLetter = currentWord[currentLetterIndex];
+            letterChoice.push(correctLetter);
+            while (letterChoice.length < 3) {
+                let randomLetter = String.fromCharCode(65 + Math.floor(Math.random() * 26)); // A-Z
+                if (randomLetter !== correctLetter && !letterChoice.includes(randomLetter)) {
+                    letterChoice.push(randomLetter);
+                }
+            }
+            letterChoice.sort(() => Math.random() - 0.5);
+        }
+
+        createLetterChoice();
+
+        function drawWord() {
+            context.font = "40px 'Press Start 2P'";
+            context.fillStyle = "black";
+            context.textAlign = "center";
+            context.strokeStyle = "white"; 
+            context.lineWidth = 3;
+            context.strokeText(currentWord, canvas.width / 2, 50);
+            context.fillText(currentWord, canvas.width / 2, 50);
+        }
+
+        // buat pilihan
+        function createChoice(){
+            createChoice = [];
+            for (var i = 0; i < 3; i++) {
+                let choice = new Sand("rock.png",4.5);
+                if (i === 0) {
+                    choice.y = (player.y - 115);
+                    choice.x = 50 - choice.width/2;
+                    choice.vx = 0;
+                    choice.letter = letterChoice[i];
+
+                } else if (i === 1) {
+                    choice.y = player.y - 115;
+                    choice.x = canvas.width / 2 - choice.width/2;
+                    choice.vx = 0;
+                    choice.letter = letterChoice[i];
+                } else {
+                    choice.y = player.y - 115;
+                    choice.x = canvas.width - 50;
+                    choice.vx = 0;
+                    choice.letter = letterChoice[i];
+                }
+                choices.push(choice);
+            }
+            
+        }
+
+        createChoice();
+    
+
+         //Inisiasi array untuk ikan
+        let fishes = [];
+
+        // Tambahkan ikan
+        for (let i = 0; i < 1; i++) { // 2 ikan
+            let fish = new Fish("fish2.png", 0.3);
+            fishes.push(fish);
+        }
+
+        // Keyboard control
+        window.addEventListener('keydown', function (event) {
+            if (event.keyCode === 38 && posisiy === null) { // Panah atas
+                posisiy = Math.max(player.y - 115, 0);
+                gameStart = true;
+                afterJump = true;
+                jump.play();
+            } else if (event.keyCode === 37 && posisiy === null) { // Panah kiri
+                posisiy = Math.max(player.y - 115, 0);
+                posisix = Math.max(player.x - 200, 0);
+                gameStart = true;
+                afterJump = true;
+                jump.play();
+            }else if (event.keyCode === 39 && posisiy === null) { // Panah kanan
+                posisiy = Math.max(player.y - 115, 0);
+                posisix = Math.max(player.x + 200, 0);
+                gameStart = true;
+                afterJump = true;
+                jump.play();
+            }else if (gameOver && event.keyCode === 32) { // spasi restart
+                location.reload();
+            }else if (!gameStart && event.keyCode === 13) { // Enter untuk memulai
+                gameStart = true;
+                bgm.play();}
+        });
+
+        window.addEventListener('keyup', function(){
+            ax = 0;
+            ay = 0;
+        }, false);
+
+        function movePlayer() {
+
+            let step = 5;
+            if (posisix !== null && posisiy !== null) {
+                let deltaX = posisix - player.x; 
+                let deltaY = posisiy - player.y;
+                let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY); 
+
+                if (distance > step) {
+                    let angle = Math.atan2(deltaY, deltaX); 
+                    player.x += Math.cos(angle) * step; 
+                    player.y += Math.sin(angle) * step; 
+                } else {
+                    player.x = posisix;
+                    player.y = posisiy;
+                    posisix = null;
+                    posisiy = null;
+                }
+            }else if (posisiy !== null) {
+                if (player.y > posisiy) {
+                    player.y -= step;
+                    if (player.y <= posisiy) {
+                        player.y = posisiy;
+                        posisiy = null;
+                    }
+                }
+            }
+        }
+
+
+        function createNewChoice() {
+            for (let i = 0; i < choices.length; i++) {
+                let choice = choices[i];
+                
+                if (player.x === choice.x && player.y === choice.y) {
+
+                    if (i!=0 && choice.letter !== currentWord[currentLetterIndex]) {
+                        wrong.play();
+                        gameOver = true; 
+                        game_over.play();
+                        return; 
+                    }
+        
+                    if (choice.letter === currentWord[currentLetterIndex]) {
+                        currentLetterIndex++;
+                        if (currentLetterIndex >= currentWord.length) {
+                            wordsCompleteInLevel ++;
+                            if (wordsCompleteInLevel >= wordsPerLevel && player.y <= grassTopY){
+                                level ++;
+                                maxWordLength ++;
+                                wordsCompleteInLevel = 0;
+                                currentLetterIndex = 0;
+                                player.y = canvas.height - 35;
+                                console.log(player.y);
+                                    
+                                return;
+                            } 
+                            if(player.y >= 150){
+                                pickRandomWord();
+                            }
+
+                            if(player.y <= 30){
+                                gameOver = false;
+                                gameStart = false;
+                                isGameWin = true;
+                            }
+
+                            currentLetterIndex = 0;
+                        }
+                        createLetterChoice();
+                        console.log(true);
+                    }
+
+                    chosenChoice = new Sand("rock.png", 4.5);
+                    chosenChoice.x = choice.x;
+                    chosenChoice.y = choice.y;
+                    chosenChoice.letter = '';
+                    chosenChoice.vx = 1;
+    
+                    choices = [];
+
+    
+                    choices.push(chosenChoice);
+
+                    if(player.y >= 150){
+
+                        for (let j = 0; j < 3; j++) {
+                            let newChoice = new Sand("rock.png",4.5);1
+                            if (j === 1) {
+                                newChoice.y = player.y - 115;
+                                newChoice.x = 50 ;
+                                newChoice.vx = 0;
+                                newChoice.letter = letterChoice[j];
+                            } else if (j === 2) {
+                                newChoice.y = player.y - 115;
+                                newChoice.x = canvas.width / 2;
+                                newChoice.vx = 0;
+                                newChoice.letter = letterChoice[j];
+                            } else {
+                                newChoice.y = player.y - 115;
+                                newChoice.x = canvas.width - 50;
+                                newChoice.vx = 0;
+                                newChoice.letter = letterChoice[j];
+                            }
+                            choices.push(newChoice);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        function checkBoundary() {
+            if(afterJump){
+                if (posisiy === null && posisix === null) {
+                    let landedOnRock = false;
+
+                    for (let choice of choices) {
+                        if (
+                            Math.abs(player.x - choice.x) < choice.width / 2 &&
+                            Math.abs(player.y - choice.y) < choice.height / 2
+                        ) {
+                            landedOnRock = true;
+                            break;
+                        }
+                    }
+                    if (!landedOnRock && player.y <= grassTopY) {
+                        isGameWin = true;
+                        
+                    }
+
+                    // Jika tidak mendarat di mana pun
+                    if (!landedOnRock && !isGameWin) {
+                        gameOver = true;
+                    }
+                }
+            }
+        }
+
+        function drawFrame() {
+            window.requestAnimationFrame(drawFrame);
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawGrass(); // Draw grass at the start of each frame
+            
+            if (!gameStart) {
+                context.font = "40px 'Press Start 2P'";
+                context.fillStyle = "Green";
+                context.textAlign = "center";
+                context.strokeStyle = "white"; 
+                context.lineWidth = 3;
+                context.strokeText(gameTitle, canvas.width / 2, canvas.height / 3-70);
+                context.fillText(gameTitle, canvas.width / 2, canvas.height / 3-70);
+                context.strokeText(gameTitle2, canvas.width / 2, canvas.height / 3);
+                context.fillText(gameTitle2, canvas.width / 2, canvas.height / 3);
+
+                context.font = "20px 'Press Start 2P'";
+                context.fillStyle = "Red";
+                context.textAlign = "center";
+                context.strokeStyle = "white"; 
+                context.lineWidth = 3;
+                context.strokeText(startMessage, canvas.width / 2, canvas.height / 2);
+                context.fillText(startMessage, canvas.width / 2, canvas.height / 2);
+                return;                
+            }
+
+            if (gameOver) {
+                game_over.play();
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.font = "20px 'Press Start 2P'";
+                context.fillStyle = "red";
+                context.textAlign = "center";
+                context.fillText("GAME OVER", canvas.width / 2, 300);
+                context.fillText("Press Space to Restart", canvas.width / 2, 350);
+                return;
+            }
+            if(gameStart){
+                bgm.play();
+                if(player.x == canvas.width/2){
+                }
+                else if (player.x <= canvas.width/2) {
+                    player.x += player.vx;
+                }else if(player.x >= canvas.width/2){
+                    player.x -= player.vx;
+                }
+                if (isGameWin) {
+                    context.font = "40px 'Press Start 2P'";
+                    context.fillStyle = "black";
+                    context.textAlign = "center";
+                    context.fillText("YOU WIN!", canvas.width / 2, 300);
+                    context.font = "20px 'Press Start 2P'";
+                    context.fillText("Press Space to Restart", canvas.width / 2, 350);
+                }
+            }
+
+            movePlayer();
+            drawWord();
+
+             // Gerakan dan gambar ikan
+            fishes.forEach(fish => {
+                fish.move();
+                fish.draw(context);
+
+            // Periksa tabrakan dengan pemain
+            if (
+                Math.abs(player.x - fish.x) < fish.width / 2 &&
+                Math.abs(player.y - fish.y) < fish.height / 2
+            ) {
+                gameOver = true;
+                wrong.play();
+                return;
+            }
+            });
+
+
+            choices.forEach(choice => {
+                if(choices[0]){
+                    if (choice.x <= canvas.width/2) {
+                        choice.x += choice.vx;
+                    }else if(choice.x >= canvas.width/2){
+                        choice.x -= choice.vx;
+                    }
+                }
+                choice.draw(context);
+                context.font = "20px 'Press Start 2P'";
+                context.fillStyle = "black";
+                context.textAlign = "center";
+                context.strokeStyle = "white"; 
+                context.lineWidth = 3;
+                context.strokeText(choice.letter, choice.x, choice.y);
+                context.fillText(choice.letter, choice.x, choice.y);
+            });
+            checkBoundary();
+            createNewChoice();
+            player.draw(context);
+        }
+
+        drawFrame();
+    </script>
+</body>
+</html>
